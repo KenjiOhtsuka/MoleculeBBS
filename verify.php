@@ -33,9 +33,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
   $header_message = '投稿します。よろしいですか？';
 echo <<<EOT
   {$header_message}
-  <div>{$molfile}</div>
-  <div>{$jmestring}</div>
-  <div>{$smiles}</div>
+  <!--
   <h2>{$title}</h2>
   <div>
     <div style="float:right;">
@@ -48,9 +46,10 @@ echo <<<EOT
   <hr />
   <div id="molculePreview" code="JME.class" archive="JME.jar" width="600" height="350">
     <param name="options" value="depict">
-    <param name="mol" value="">
+    <param name="mol" value="{$molfile}">
   </div>
   <div style="color:{$color};clear:both;" id="verifyPreview" name="verifyPreview">{$message}</div>
+  -->
   <form action="{$_SERVER['PHP_SELF']}" onsubmit="return formOnPost();" method="POST" name="ConfirmDialog" id="ConfirmDialog">
     <input type="submit" value="投稿する" />
     <input type="reset" value="キャンセル" onclick="cancelOnClick();" />
