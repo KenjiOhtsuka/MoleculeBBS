@@ -17,12 +17,16 @@
 <script type="text/javascript">
   window.onload = function() {
     var doc = document;
-    doc.getElementById('add').onclick = function() {
+    // doc.getElementById('add').onclick = function() {
 
-    }
-    doc.getElementById('remove').onclick = function() {
+    // };
+    // doc.getElementById('remove').onclick = function() {
 
-    }
+    // };
+    doc.getElementById('output').onclick = function() {
+      var jme = document.JME.jmeFile();
+      document.jsapplets[1].readMolecule(jme);
+    };
   }
 </script>
 </head>
@@ -35,8 +39,6 @@
 <?php
   $title = "構造式練習場";
   $message = "ここでは、構造式の練習ができます。<br />";
-  $message .= "リアルタイムプレビューにチェックを入れると、テキストを編集する度に、随時結果が右側に表示されます。ただしその場合、処理が増えるためレスポンスが遅くなります。<br />";
-  $message .= "表示されている構造式を右クリックして Show source を選択すると、 $\TeX$ での数式の書き方が表示されます。<br />";
   $message .= "javascript を使用しています。";
   echo createIntroductionHtml($title, '', '', '', 'black', $message);
 ?>
@@ -45,13 +47,17 @@
     <tr>
       <td>
         <div class="TrainMolInput">
-          <div id="jsme_container"></div>
+          <div name="JME" code="JME.class"
+              archive="JME.jar" width="350" height="350"></div>
+          <form action="#">
+            <button type="button" id="output">右のエリアに描画</button>
+          </form>
         </div>
       </td>
       <td>
         <div class="TrainMolOutput">
           <div name="molecule_output">
-                    <div code="JME.class" archive="JME.jar" width=250 height=120>
+                    <div code="JME.class" archive="JME.jar" width="250" style="width:100%;" height=120>
                     <param name="options" value="depict">
                     <param name="mol"
                       value="$RXN
@@ -98,12 +104,14 @@ JME 2013-10-12 Mon Feb 03 18:14:23 GMT+900 2014
 M  END
 ">
 
-                  </div>
+            </div>
           </div>
+          <!--
           <form action='#'>
             <button type="button" id="add">追加</button>
             <button type="button" id="remove">削除</button>
           </form>
+        -->
         </div>
       </td>
     </tr>

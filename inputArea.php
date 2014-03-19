@@ -42,7 +42,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     }
     $facebook_id = htmlspecialchars($_POST['facebookID']);
     $facebook_id = mysql_real_escape_string($facebook_id);
-    //$url = htmlspecialchars($_POST['url']);
+    $molfile = mysql_real_escape_string($_POST['molfile']);
+    $jmestring = mysql_real_escape_string($_POST['jmestring']);
+    $smiles = mysql_real_escape_string($_POST['smiles']);
+    $url = ''; //htmlspecialchars($_POST['url']);
     $color = htmlspecialchars($_POST['color']);
     $password = $_POST['password'];
     if (mb_strlen($password, "utf-8") <= 20 &&
@@ -80,12 +83,20 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             break;
           } 
           if ($error_message == '') {
-            $sqlPost = "UPDATE molecule_posts SET writer = '{$writer}', title = '{$title}', "
+            $sqlPost = "UPDATE molecule_posts SET writer = '{$writer}', "
                       ."title = '{$title}', message = '{$message}', "
                       ."twitter_id = '{$twitter_id}', mixi_id = '{$mixi_id}', facebook_id = '{$facebook_id}', "
                       ."color = '{$color}', modified = NOW() + INTERVAL 14 HOUR "
                       ."WHERE topic_id = {$topic_id} AND id = {$post_id} AND password = '{$password}'";
-            if (!mysql_query($sqlPost)) {
+            if (!empty($molfile)) {
+              $sqlMol = "UPDATE molecule_structures("
+                       ."topic_id, post_id, smiles, jmestring, molfile, `order`) "
+                       ."VALUES({$topic_id}, {$post_id}, '{$smiles}', '{$jmestring}', '{$molfile}', 1)";
+            } else {
+              $sqlMol = "DELETE FROM molecule_structures "
+                       ."WHERE topic_id = {$topic_id} AND post_id = {$post_id}";
+            }
+            if (!mysql_query($sqlPost) || !mysql_query($sqlMol)) {
               echo mysql_error();
               $error_mesage .= "更新に失敗しました。<br />";
               break;
@@ -122,13 +133,19 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                       ."created) ";
             $sqlPost .= "VALUES({$post_id}, {$topic_id}, '{$writer}', '{$title}', '{$message}', "
                       ."'{$twitter_id}', '{$mixi_id}', '{$facebook_id}', '{$url}', '{$color}', "
-                      ."'{$password}', now() + INTERVAL 14 HOUR)";
-            if (!mysql_query($sqlPost)) {
+                      ."'{$password}', now() + INTERVAL ".Config::TimeInterval." HOUR)";
+            if (!empty($molfile)) {
+              $sqlMol = "INSERT INTO molecule_structures("
+                       ."topic_id, post_id, smiles, jmestring, molfile, `order`) "
+                       ."VALUES({$topic_id}, {$post_id}, '{$smiles}', '{$jmestring}', '{$molfile}', 1)";
+            }
+            if (!mysql_query($sqlPost) || (!empty($molfile) && !mysql_query($sqlMol))) {
               echo mysql_error();
+              mysql_query("DELETE FROM molecule_posts WHERE topic_id = {$topic_id} AND post_id = {$post_id}");
               $error_message .= "投稿に失敗しました。<br />";
               break;
             }
-            $sqlPost = "UPDATE molecule_topics SET updated = now() + INTERVAL 14 HOUR WHERE id = {$topic_id}";
+            $sqlPost = "UPDATE molecule_topics SET updated = now() + INTERVAL ".Config::TimeInterval." HOUR WHERE id = {$topic_id}";
             if (!mysql_query($sqlPost)) {
               echo mysql_error();
               $error_message .= "トピック時刻更新に失敗しました。<br />";
@@ -161,10 +178,15 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                       ."created) ";
             $sqlPost .= "VALUES(0, {$topic_id}, '{$writer}', '{$title}', '{$message}', "
                       ."'{$twitter_id}', '{$mixi_id}', '{$facebook_id}', '{$url}', '{$color}', "
-                      ."'{$password}', now() + INTERVAL 14 HOUR)";
-            if (!mysql_query($sqlPost)) {
+                      ."'{$password}', now() + INTERVAL ".((string)Config::TimeInterval)." HOUR)";
+            if (!empty($molfile)) {
+              $sqlMol = "INSERT INTO molecule_structures(topic_id, post_id, smiles, jmestring, molfile, `order`) "
+                       ."VALUES({$topic_id}, 0, '{$smiles}', '{$jmestring}', '{$molfile}', 1)";
+            }
+            if (!mysql_query($sqlPost) || (!empty($molfile) && !mysql_query($sqlMol))) {
               echo mysql_error();
               mysql_query("DELETE FROM molecule_topics WHERE id = {$topic_id}");
+              mysql_query("DELETE FROM molecule_posts WHERE topic_id = {$topic_id}");
               echo mysql_error();
               break;
             }
@@ -183,7 +205,7 @@ if ($error_message != '') {
 switch ($input_type) {
   case InputType::None:
     echo outputForm('index.php', '', $writer, '', $color,
-                   $mixi_id, $tweeter_id, $facebook_id);
+                   $mixi_id, $twitter_id, $facebook_id);
     break;
 
   case InputType::Edit:
@@ -250,7 +272,4 @@ switch ($input_type) {
     break;
 }
 
-?>
-<?php
-require('molecule_input.php');
 ?>

@@ -9,7 +9,7 @@ switch ($pattern) {
       $n = ($page_number - 1) * ConstParam::BoardTopicCount;
     }
 
-    $sqlHead = "SELECT count(BBStopics.id) id_count FROM BBStopics";
+    $sqlHead = "SELECT count(molecule_topics.id) id_count FROM molecule_topics";
     $rowsHead = mysql_query($sqlHead);
     if (!$rowsHead) {
       die(mysql_error());
@@ -24,17 +24,22 @@ switch ($pattern) {
     echo $pager;
     echo "<hr />";
 
+    // get topic top posts with comments count
     $sqlHead = "SELECT postsA.topic_id, postsA.writer,"
               ."postsA.title, postsA.message, postsA.twitter_id,"
               ."postsA.mixi_id, postsA.facebook_id, postsA.url,"
-              ."postsA.color, postsA.created, postsA.modified, postsC.id_count ";
-    $sqlHead .= "FROM (SELECT id, updated FROM BBStopics "
+              ."postsA.color, postsA.created, postsA.modified, postsC.id_count, "
+              ."ms.molfile, ms.jmestring, ms.smiles ";
+    $sqlHead .= "FROM (SELECT id, updated FROM molecule_topics "
                ."ORDER BY updated DESC LIMIT ".(string)$n.", ".(string)ConstParam::BoardTopicCount.") "
-               ."BBStopics "
-               ."JOIN BBSposts postsA ON postsA.topic_id = BBStopics.id AND postsA.id = 0 "
-               ."JOIN (SELECT postsB.topic_id topic_id, count(postsB.id) id_count FROM BBSposts postsB GROUP BY postsB.topic_id) postsC "
-               ."  ON postsC.topic_id = BBStopics.id "
-               ."ORDER BY BBStopics.updated DESC";
+               ."molecule_topics "
+               ."JOIN molecule_posts postsA ON postsA.topic_id = molecule_topics.id AND postsA.id = 0 "
+               ."JOIN (SELECT postsB.topic_id topic_id, count(postsB.id) id_count FROM molecule_posts postsB GROUP BY postsB.topic_id) postsC "
+               ."  ON postsC.topic_id = molecule_topics.id "
+               ."LEFT JOIN molecule_structures ms "
+               ."  ON ms.topic_id = postsA.topic_id "
+               ." AND ms.post_id = postsA.id "
+               ."ORDER BY molecule_topics.updated DESC";
 
     $rowsHead = mysql_query($sqlHead, $myCon);
     if (!$rowsHead) {
@@ -44,15 +49,23 @@ switch ($pattern) {
       echo "<div class=\"topic\">";
       echo createTopicHtml($rowHead['topic_id'], $rowHead['title'], $rowHead['writer'], 
                          $rowHead['twitter_id'], $rowHead['mixi_id'], $rowHead['facebook_id'], 
-                         $rowHead['color'], nl2br($rowHead['message']), $rowHead['created'], $rowHead['modified']);
+                         $rowHead['color'], nl2br($rowHead['message']), $rowHead['created'], $rowHead['modified'],
+                         stripslashes($rowHead['molfile']),
+                         stripslashes($rowHead['jmestring']),
+                         stripslashes($rowHead['smiles']));
 
-      $sqlPost = "SELECT BBSposts.id post_id, BBSposts.writer,"
-                ."BBSposts.title, BBSposts.message, BBSposts.twitter_id,"
-                ."BBSposts.mixi_id, BBSposts.facebook_id, BBSposts.url,"
-                ."BBSposts.color, BBSposts.created, BBSposts.modified ";
-      $sqlPost .= "FROM BBSposts WHERE BBSposts.topic_id = {$rowHead['topic_id']} "
-                 ."AND BBSposts.id != 0 "
-                 ."ORDER BY BBSposts.id DESC LIMIT 0, ".(string)ConstParam::BoardTopicCommentCount;
+      $sqlPost = "SELECT molecule_posts.id post_id, molecule_posts.writer,"
+                ."molecule_posts.title, molecule_posts.message, molecule_posts.twitter_id,"
+                ."molecule_posts.mixi_id, molecule_posts.facebook_id, molecule_posts.url,"
+                ."molecule_posts.color, molecule_posts.created, molecule_posts.modified, "
+                ."ms.molfile, ms.jmestring, ms.smiles ";
+      $sqlPost .= "FROM molecule_posts "
+                 ."LEFT JOIN molecule_structures ms "
+                 ."  ON ms.post_id = molecule_posts.id "
+                 ." AND ms.topic_id = molecule_posts.topic_id "
+                 ."WHERE molecule_posts.topic_id = {$rowHead['topic_id']} "
+                 ."AND molecule_posts.id != 0 "
+                 ."ORDER BY molecule_posts.id DESC LIMIT 0, ".(string)ConstParam::BoardTopicCommentCount;
       $rowsPost = mysql_query($sqlPost, $myCon);
       if (!$rowsPost) {
         die(mysql_error());
@@ -61,7 +74,10 @@ switch ($pattern) {
       while($rowPost = mysql_fetch_array($rowsPost)) {
         $html = createCommentHtml($rowHead['topic_id'], $rowPost['post_id'], $rowPost['title'], $rowPost['writer'], 
                                $rowPost['twitter_id'], $rowPost['mixi_id'], $rowPost['facebook_id'],
-                               $rowPost['color'], nl2br($rowPost['message']), $rowPost['created'], $rowPost['modified'])
+                               $rowPost['color'], nl2br($rowPost['message']), $rowPost['created'], $rowPost['modified'],
+                               stripslashes($rowHead['molfile']),
+                               stripslashes($rowHead['jmestring']),
+                               stripslashes($rowHead['smiles']))
               .$html;
       }
       if ($rowHead['id_count'] > ConstParam::BoardTopicCommentCount + 1) {
@@ -80,12 +96,12 @@ switch ($pattern) {
   case PageType::Comment:
     $topic_id = (int)$_GET[GetParam::TopicId];
     /* create pager - start - */
-    $sqlHead = "SELECT count(BBSposts.id) id_count FROM BBSposts WHERE BBSposts.topic_id = {$topic_id}";
+    $sqlHead = "SELECT count(molecule_posts.id) id_count FROM molecule_posts WHERE molecule_posts.topic_id = {$topic_id}";
     $rowsHead = mysql_query($sqlHead);
     if (!$rowsHead) {
       die(mysql_error());
     }
-    $sqlPost = "SELECT count(BBSposts.id) id_count FROM BBSposts WHERE BBSposts.topic_id = {$topic_id} AND id BETWEEN 1 AND {$_GET[GetParam::PostId]}";
+    $sqlPost = "SELECT count(molecule_posts.id) id_count FROM molecule_posts WHERE molecule_posts.topic_id = {$topic_id} AND id BETWEEN 1 AND {$_GET[GetParam::PostId]}";
     $rowsPost = mysql_query($sqlPost);
     if (!$rowsPost) {
       die(mysql_error());
@@ -106,13 +122,17 @@ switch ($pattern) {
     echo $pager;
     echo "<hr />";
 
-    $sqlHead = "SELECT BBSposts.topic_id, BBSposts.id post_id, BBSposts.writer,"
-              ."BBSposts.title, BBSposts.message, BBSposts.twitter_id,"
-              ."BBSposts.mixi_id, BBSposts.facebook_id, BBSposts.url,"
-              ."BBSposts.color, BBSposts.created, BBSposts.modified ";
-    $sqlHead .= "FROM BBStopics "
-               ."JOIN BBSposts ON BBSposts.topic_id = BBStopics.id AND BBSposts.id = 0 "
-               ."WHERE BBStopics.id = {$topic_id}";
+    $sqlHead = "SELECT mp.topic_id, mp.id post_id, mp.writer,"
+              ."mp.title, mp.message, mp.twitter_id,"
+              ."mp.mixi_id, mp.facebook_id, mp.url,"
+              ."mp.color, mp.created, mp.modified, "
+              ."ms.molfile, ms.jmestring, ms.smiles ";
+    $sqlHead .= "FROM molecule_topics mt "
+               ."JOIN molecule_posts mp ON mp.topic_id = mt.id AND mp.id = 0 "
+               ."LEFT JOIN molecule_structures ms "
+               ."  ON ms.post_id = mp.post_id "
+               ." AND ms.topic_id = mp.topic_id "
+               ."WHERE mt.id = {$topic_id}";
     $rowsHead = mysql_query($sqlHead, $myCon);
     if (!$rowsHead) {
       die(mysql_error());
@@ -121,14 +141,22 @@ switch ($pattern) {
       echo "  <div class=\"topic\">";
       echo createTopicHtml($topic_id, $rowHead['title'], $rowHead['writer'], 
                          $rowHead['twitter_id'], $rowHead['mixi_id'], $rowHead['facebook_id'], 
-                         $rowHead['color'], nl2br($rowHead['message']), $rowHead['created'], $rowHead['modified']);
-      $sqlPost = "SELECT BBSposts.id post_id, BBSposts.writer,"
-                ."BBSposts.title, BBSposts.message, BBSposts.twitter_id,"
-                ."BBSposts.mixi_id, BBSposts.facebook_id, BBSposts.url,"
-                ."BBSposts.color, BBSposts.created, BBSposts.modified ";
-      $sqlPost .= "FROM BBSposts WHERE BBSposts.topic_id = {$topic_id} "
-                 ."AND BBSposts.id != 0 "
-                 ."ORDER BY BBSposts.id DESC LIMIT 0, ".(string)ConstParam::TopicCommentCount;
+                         $rowHead['color'], nl2br($rowHead['message']), $rowHead['created'], $rowHead['modified'],
+                         stripslashes($rowHead['molfile']),
+                         stripslashes($rowHead['jmestring']),
+                         stripslashes($rowHead['smiles']));
+      $sqlPost = "SELECT molecule_posts.id post_id, molecule_posts.writer,"
+                ."molecule_posts.title, molecule_posts.message, molecule_posts.twitter_id,"
+                ."molecule_posts.mixi_id, molecule_posts.facebook_id, molecule_posts.url,"
+                ."molecule_posts.color, molecule_posts.created, molecule_posts.modified, "
+                ."ms.molfile, ms.jmestring, ms.smiles ";
+      $sqlPost .= "FROM molecule_posts "
+                 ."LEFT JOIN molecule_structures ms "
+                 ."  ON ms.post_id = molecule_posts.id "
+                 ." AND ms.topic_id = molecule_posts.topic_id "
+                 ."WHERE molecule_posts.topic_id = {$topic_id} "
+                 ."AND molecule_posts.id != 0 "
+                 ."ORDER BY molecule_posts.id DESC LIMIT 0, ".(string)ConstParam::TopicCommentCount;
       $rowsPost = mysql_query($sqlPost, $myCon);
       if (!$rowsPost) {
         die(mysql_error());
@@ -139,7 +167,10 @@ switch ($pattern) {
         $post_id = $rowPost['post_id'];
         $html = createCommentHtml($rowHead['topic_id'], $rowPost['post_id'], $rowPost['title'], $rowPost['writer'], 
                                $rowPost['twitter_id'], $rowPost['mixi_id'], $rowPost['facebook_id'],
-                               $rowPost['color'], nl2br($rowPost['message']), $rowPost['created'], $rowPost['modified'])
+                               $rowPost['color'], nl2br($rowPost['message']), $rowPost['created'], $rowPost['modified'],
+                               stripslashes($rowPost['molfile']),
+                               stripslashes($rowPost['jmestring']),
+                               stripslashes($rowPost['smiles']))
                .$html;
       }
       echo $html;
@@ -150,12 +181,12 @@ switch ($pattern) {
     }
 
     echo "<hr />";
-    $sqlHead = "SELECT count(BBSposts.id) id_count FROM BBSposts WHERE BBSposts.topic_id = {$topic_id}";
+    $sqlHead = "SELECT count(molecule_posts.id) id_count FROM molecule_posts WHERE molecule_posts.topic_id = {$topic_id}";
     $rowsHead = mysql_query($sqlHead);
     if (!$rowsHead) {
       die(mysql_error());
     }
-    $sqlPost = "SELECT count(BBSposts.id) id_count FROM BBSposts WHERE BBSposts.topic_id = {$topic_id} AND id BETWEEN 1 AND {$_GET[GetParam::PostId]}";
+    $sqlPost = "SELECT count(molecule_posts.id) id_count FROM molecule_posts WHERE molecule_posts.topic_id = {$topic_id} AND id BETWEEN 1 AND {$_GET[GetParam::PostId]}";
     $rowsPost = mysql_query($sqlPost);
     if (!$rowsPost) {
       die(mysql_error());
@@ -183,7 +214,7 @@ switch ($pattern) {
       $page_number = 1;
     }
 
-    $sqlPost = "SELECT count(BBSposts.id) id_count FROM BBSposts WHERE BBSposts.topic_id = {$topic_id}";
+    $sqlPost = "SELECT count(molecule_posts.id) id_count FROM molecule_posts WHERE molecule_posts.topic_id = {$topic_id}";
     $rowsPost = mysql_query($sqlPost);
     if (!$rowsPost) {
       die(mysql_error());
@@ -199,13 +230,19 @@ switch ($pattern) {
     echo $pager;
     echo "<hr />";
 
-    $sqlHead = "SELECT BBSposts.topic_id, BBSposts.id post_id, BBSposts.writer,"
-              ."BBSposts.title, BBSposts.message, BBSposts.twitter_id,"
-              ."BBSposts.mixi_id, BBSposts.facebook_id, BBSposts.url,"
-              ."BBSposts.color, BBSposts.created, BBSposts.modified ";
-    $sqlHead .= "FROM BBStopics "
-               ."JOIN BBSposts ON BBSposts.topic_id = BBStopics.id AND BBSposts.id = 0 "
-               ."WHERE BBStopics.id = {$topic_id}";
+    $sqlHead = "SELECT mp.topic_id, mp.id post_id, mp.writer,"
+              ."mp.title, mp.message, mp.twitter_id,"
+              ."mp.mixi_id, mp.facebook_id, mp.url,"
+              ."mp.color, mp.created, mp.modified, "
+              ."ms.molfile, ms.jmestring, ms.smiles ";
+    $sqlHead .= "FROM molecule_topics mt "
+               ."JOIN molecule_posts mp"
+               ."  ON mp.topic_id = mt.id "
+               ." AND mp.id = 0 "
+               ."LEFT JOIN molecule_structures ms "
+               ."  ON ms.topic_id = mt.id "
+               ." AND ms.post_id  = mp.id "
+               ."WHERE mt.id = {$topic_id}";
 
     $rowsHead = mysql_query($sqlHead, $myCon);
     if (!$rowsHead) {
@@ -217,15 +254,23 @@ switch ($pattern) {
       echo "  <div class=\"topic\">";
       echo createTopicHtml($rowHead['topic_id'], $rowHead['title'], $rowHead['writer'], 
                          $rowHead['twitter_id'], $rowHead['mixi_id'], $rowHead['facebook_id'], 
-                         $rowHead['color'], nl2br($rowHead['message']), $rowHead['created'], $rowHead['modified']);
+                         $rowHead['color'], nl2br($rowHead['message']), $rowHead['created'], $rowHead['modified'],
+                         stripslashes($rowHead['molfile']),
+                         stripslashes($rowHead['jmestring']),
+                         stripslashes($rowHead['smiles']));
 
-      $sqlPost = "SELECT BBSposts.id post_id, BBSposts.writer,"
-                ."BBSposts.title, BBSposts.message, BBSposts.twitter_id,"
-                ."BBSposts.mixi_id, BBSposts.facebook_id, BBSposts.url,"
-                ."BBSposts.color, BBSposts.created, BBSposts.modified ";
-      $sqlPost .= "FROM BBSposts WHERE BBSposts.topic_id = {$topic_id} "
-                 ."AND BBSposts.id != 0 "
-                 ."ORDER BY BBSposts.id DESC LIMIT {$n}, ".(string)ConstParam::TopicCommentCount;
+      $sqlPost = "SELECT mp.id post_id, mp.writer,"
+                ."mp.title, mp.message, mp.twitter_id,"
+                ."mp.mixi_id, mp.facebook_id, mp.url,"
+                ."mp.color, mp.created, mp.modified, "
+                ."ms.molfile, ms.jmestring, ms.smiles ";
+      $sqlPost .= "FROM molecule_posts mp "
+                 ."LEFT JOIN molecule_structures ms "
+                 ."  ON ms.topic_id = mp.topic_id "
+                 ." AND ms.post_id = mp.id "
+                 ."WHERE mp.topic_id = {$topic_id} "
+                 ."AND mp.id != 0 "
+                 ."ORDER BY mp.id DESC LIMIT {$n}, ".(string)ConstParam::TopicCommentCount;
       $rowsPost = mysql_query($sqlPost, $myCon);
       if (!$rowsPost) {
         die(mysql_error());
@@ -236,7 +281,10 @@ switch ($pattern) {
         $post_id = $rowPost['post_id'];
         $html = createCommentHtml($topic_id, $rowPost['post_id'], $rowPost['title'], $rowPost['writer'], 
                                $rowPost['twitter_id'], $rowPost['mixi_id'], $rowPost['facebook_id'],
-                               $rowPost['color'], nl2br($rowPost['message']), $rowPost['created'], $rowPost['modified'])
+                               $rowPost['color'], nl2br($rowPost['message']), $rowPost['created'], $rowPost['modified'],
+                               stripslashes($rowPost['molfile']),
+                               stripslashes($rowPost['jmestring']),
+                               stripslashes($rowPost['smiles']))
               .$html;
       }
       if ($post_id != 1) {
@@ -258,7 +306,7 @@ switch ($pattern) {
     $page_number = $_GET['summery_number'];
     
     /* create pager - start - */
-    $sqlHead = "SELECT count(BBStopics.id) id_count FROM BBStopics";
+    $sqlHead = "SELECT count(molecule_topics.id) id_count FROM molecule_topics";
     $rowsHead = mysql_query($sqlHead);
     if (!$rowsHead) {
       die(mysql_error());
@@ -276,14 +324,14 @@ switch ($pattern) {
     echo "<hr />";
 
     $n = ($page_number - 1) * ConstParam::SummeryCount;
-    $sqlHead = "SELECT BBStopics.id, A.title title, count(B.id) - 1 posts_count, "
-              ."BBStopics.updated ";
-    $sqlHead .= "FROM (SELECT id, updated FROM BBStopics "
+    $sqlHead = "SELECT molecule_topics.id, A.title title, count(B.id) - 1 posts_count, "
+              ."molecule_topics.updated ";
+    $sqlHead .= "FROM (SELECT id, updated FROM molecule_topics "
                ."ORDER BY updated DESC LIMIT ".(string)$n.", ".(string)ConstParam::SummeryCount.") "
-               ."BBStopics "
-               ."JOIN BBSposts A ON A.topic_id = BBStopics.id AND A.id = 0 "
-               ."JOIN BBSposts B ON B.topic_id = BBStopics.id ";
-    $sqlHead .= "GROUP BY BBStopics.id ORDER BY BBStopics.updated DESC";
+               ."molecule_topics "
+               ."JOIN molecule_posts A ON A.topic_id = molecule_topics.id AND A.id = 0 "
+               ."JOIN molecule_posts B ON B.topic_id = molecule_topics.id ";
+    $sqlHead .= "GROUP BY molecule_topics.id ORDER BY molecule_topics.updated DESC";
     $rowsHead = mysql_query($sqlHead, $myCon);
     if (!$rowsHead) {
       die(mysql_error());

@@ -1,4 +1,8 @@
 <?php
+class Config {
+  const TimeInterval = 14;
+}
+
 class PageType {
   const Unknown = 0;
   const Board = 1;
@@ -45,14 +49,12 @@ class ConstText {
 function metaTags($title) {
   $code = '
   <meta charset="utf-8" />
-  <meta name="description" content="構造式の書ける化学掲示板。TeX の文法を使って、数式を表示することができます。ぜひご活用ください。" />';
+  <meta name="description" content="構造式の書ける化学掲示板。ぜひご活用ください。" />
+  <meta name="keywords" content="';
   if (isset($title)) {
-    $code .= '
-  <meta name="keywords" content="'.$title.',数式,数学,質問,掲示板,問題,教育,学習,練習,TeX,LaTeX" />';
-  } else {
-    $code .= '
-  <meta name="keywords" content="数式,数学,質問,掲示板,問題,教育,学習,練習,TeX,LaTeX" />';
+    $code .= $title.',';
   }
+  $code .= '構造式,化学,質問,掲示板,問題,教育,学習,練習,TeX,LaTeX" />';
   return $code;
 }
 
@@ -82,14 +84,12 @@ function createPager($page_number, $item_count, $items_a_page, $pagers_a_page, $
 function createSocialLink($twitter_id = '', $mixi_id = '', $facebook_id = '', $title, $topic_id, $post_id = 0) {
   $socialLink = '';
   if (!empty($twitter_id)) {
+    $url = "http://nippon.vacau.com/MoleculeBBS/index.php";
     if (!empty($topic_id)) {
+      $url .= "?".GetParam::TopicId."={$topic_id}";
       if (!empty($post_id)) {
-        $url = "http://nippon.vacau.com/TeXBBS/index.php?".GetParam::TopicId."={$topic_id}&".GetParam::PostId."={$post_id}";
-      } else {
-        $url = "http://nippon.vacau.com/TeXBBS/index.php?".GetParam::TopicId."={$topic_id}";
+        $url .= "&".GetParam::PostId."={$post_id}";
       }
-    } else {
-      $url = "http://nippon.vacau.com/TeXBBS/index.php";
     }
     $url = htmlspecialchars($url);
     $title = htmlspecialchars($title);
@@ -105,7 +105,7 @@ function createSocialLink($twitter_id = '', $mixi_id = '', $facebook_id = '', $t
   return $socialLink;
 }
 
-function createCommentHtml($topic_id, $post_id, $title, $writer, $twitter_id, $mixi_id, $facebook_id, $color = 'black', $message, $created, $modified) {
+function createCommentHtml($topic_id, $post_id, $title, $writer, $twitter_id, $mixi_id, $facebook_id, $color = 'black', $message, $created, $modified, $molfile, $jmestring, $smiles) {
   if (!empty($modified)) {
     $datetime = $modified;
   } else {
@@ -119,12 +119,18 @@ function createCommentHtml($topic_id, $post_id, $title, $writer, $twitter_id, $m
   $html .= createSocialLink($twitter_id, $mixi_id, $facebook_id, $title, $topic_id, $post_id);
   $html .= "\n    </div>\n";
   $html .= "    <hr />\n";
+  if (!empty($molfile)) {
+    $html .= "  <div code='JME.class' archive='JME.jar' width='590' height='340'>
+                  <param name='options' value='depict' />
+                  <param name='mol' value='{$molfile}' />
+                </div>";
+  }
   $html .= "    <div class=\"message\" style=\"color:{$color};\">{$message}</div>\n";
   $html .= "    <div class=\"footLink\"><a href=\"{$_SERVER['PHP_SELF']}?".GetParam::TopicId."={$topic_id}&".GetParam::PostId."={$post_id}&".GetParam::Mode."=".ModeType::Edit."\">編集</a>　<a href=\"{$_SERVER['PHP_SELF']}?".GetParam::TopicId."={$topic_id}&".GetParam::PostId."={$post_id}\">コメント</a></div>\n";
   $html .= "  </div>\n";
   return $html;
 }
-function createTopicHtml($topic_id, $title, $writer, $twitter_id, $mixi_id, $facebook_id, $color = 'black', $message, $created, $modified) {
+function createTopicHtml($topic_id, $title, $writer, $twitter_id, $mixi_id, $facebook_id, $color = 'black', $message, $created, $modified, $molfile, $jmestring, $smiles) {
   if (!empty($modified)) {
     $datetime = $modified;
   } else {
@@ -138,6 +144,12 @@ function createTopicHtml($topic_id, $title, $writer, $twitter_id, $mixi_id, $fac
   $html .= createSocialLink($twitter_id, $mixi_id, $facebook_id, $title, $topic_id);
   $html .= "\n  </div>\n";
   $html .= "  <hr />\n";
+  if (!empty($molfile)) {
+    $html .= "  <div code='JME.class' archive='JME.jar' width='600' height='340'>
+                  <param name='options' value='depict' />
+                  <param name='mol' value='{$molfile}' />
+                </div>";
+  }
   $html .= "  <div class=\"message\" style=\"color:{$color};\">{$message}</div>\n";
   $html .= "  <div class=\"footLink\"><a href=\"{$_SERVER['PHP_SELF']}?".GetParam::TopicId."={$topic_id}&".GetParam::Mode."=".ModeType::Edit."\">編集</a>　<a href=\"{$_SERVER['PHP_SELF']}?".GetParam::TopicId."={$topic_id}\">コメント</a></div>\n";
 //  $html .= "  <div class=\"footLink\"><a href=\"{$_SERVER['PHP_SELF']}?".GetParam::TopicId."={$topic_id}\">コメント</a></div>\n";
@@ -158,7 +170,8 @@ function createIntroductionHtml($title, $twitter_id, $mixi_id, $facebook_id, $co
 
 function outputForm($formAction, $title = '', $writer = '', $message = '', $color = '',
                    $mixi_id = '', $twitter_id = '', $facebook_id = '', 
-                   $topic_id = '', $post_id = '', $mode = ModeType::View) {
+                   $topic_id = '', $post_id = '', $mode = ModeType::View, 
+                   $molfile = '', $jmestring = '', $smiles = '') {
   $blue_color = '';
   $red_color = '';
   $green_color = '';
@@ -187,6 +200,12 @@ function outputForm($formAction, $title = '', $writer = '', $message = '', $colo
     <tr>
       <td>名前</td>
       <td colspan=\"4\"><input type=\"text\" id=\"writer\" name=\"writer\" maxlength=\"20\" required=\"required\" value=\"{$writer}\" /></td>
+    </tr>
+    <tr>
+      <td>構造式</td>
+      <td colspan=\"4\">
+        <div name=\"JME\" code=\"JME.class\" archive=\"JME.jar\" width=\"600\" height=\"340\"></div>
+      </td>
     </tr>
     <tr>
       <td>メッセージ</td>
@@ -252,6 +271,9 @@ function outputForm($formAction, $title = '', $writer = '', $message = '', $colo
     <input type=\"hidden\" value=\"{$topic_id}\" name=\"topic_id\" id=\"topic_id\" />
     <input type=\"hidden\" value=\"{$post_id}\" name=\"post_id\" id=\"post_id\" />
     <input type=\"hidden\" value=\"{$mode}\" name=\"mode\" id=\"mode\" />
+    <input type=\"hidden\" value=\"{$molfile}\" name=\"molfile\" id=\"molfile\" />
+    <input type=\"hidden\" value=\"{$jmestring}\" name=\"jmestring\" id=\"jmestring\" />
+    <input type=\"hidden\" value=\"{$smiles}\" name=\"smiles\" id=\"smiles\" />
   </form>
   </div>
 

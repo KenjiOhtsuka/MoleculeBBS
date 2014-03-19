@@ -73,6 +73,9 @@ function isAlphaNumberString(text) {
     param += '&color=' + encodeURIComponent(document.getElementById('color').value);
     param += '&topic_id=' + encodeURIComponent(document.getElementById('topic_id').value);
     param += '&post_id=' + encodeURIComponent(document.getElementById('post_id').value);
+    param += '&molfile=' + encodeURIComponent(document.JME.molFile())
+    param += '&jmestring=' + encodeURIComponent(document.JME.jmeFile())
+    param += '&smiles=' + encodeURIComponent(document.JME.smiles())
     req.send(param);
   }
     function verify(inStrict) {
@@ -166,6 +169,9 @@ function isAlphaNumberString(text) {
     }
     function formOnPost() {
       document.getElementById('taskId').value = document.getElementById('preTaskId').value;
+      document.getElementById('jmestring').value = document.getElementById('preJmestring').value;
+      document.getElementById('smiles').value = document.getElementById('preSmiles').value;
+      document.getElementById('molfile').value = document.getElementById('preMolfile').value;
       document.MathPad.submit();
       return false;
     }

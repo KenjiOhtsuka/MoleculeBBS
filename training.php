@@ -81,7 +81,7 @@ MathJax.Hub.Queue(["Typeset",MathJax.Hub,"TrainMathOutput"]);
 </div>
 </td></tr>
 <tr><td>
-<div id="TrainMathInput">
+<div id="TrainMathInput" class="TrainMathInput">
 <textarea cols="50" rows="30" id="InputTextarea" name="InputTextarea" onkeyup="messageOnKeyUp();">
 $$f(x) = x^2 + ax$$
 \[
@@ -98,7 +98,7 @@ $x \in \mathbb{N}$ なので $x \div 3 \neq 2$.
 </div>
 </td>
 <td>
-<div id="TrainMathOutput">
+<div id="TrainMathOutput" class="TrainMathOutput">
 $$f(x) = x^2 + ax$$ <br />
 \[
  \left\{  

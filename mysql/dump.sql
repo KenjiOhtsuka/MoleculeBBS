@@ -77,8 +77,8 @@ UNLOCK TABLES;
 DROP TABLE IF EXISTS `molecule_structure`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
-CREATE TABLE `molecule_structure` (
-  `id` bigint(20) unsigned NOT NULL,
+CREATE TABLE `molecule_structures` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
   `topic_id` bigint(20) unsigned NOT NULL DEFAULT '0',
   `post_id` bigint(20) unsigned NOT NULL DEFAULT '0',
   `smiles` text NOT NULL,

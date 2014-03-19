@@ -15,10 +15,13 @@
 <script type="text/javascript" language="javascript"
   src="javascript/jsme/jsme.nocache.js"></script>
 <script>
-    //this function will be called after the JavaScriptApplet code has been loaded.
-    function jsmeOnLoad() {
-        jsmeApplet = new JSApplet.JSME("jsme_container", "380px", "340px");
-   }
+  //this function will be called after the JavaScriptApplet code has been loaded.
+  function jsmeOnLoad() {
+    var edit_panel_id = "jsme_container";
+    if (document.getElementById(edit_panel_id)) {
+      jsmeApplet = new JSApplet.JSME(edit_panel_id, "380px", "340px");
+    }
+  }
 </script>
 <?php
   if ($pattern == PageType::Unknown || $pattern == PageType::Comment ||
